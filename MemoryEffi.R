@@ -5,6 +5,7 @@ setwd("/home/arcs/Oct14/DataCSV")
 getwd()
 #newdata <- read.csv("Oct2017Efficiency.csv", header = T, sep=",")
 newdata <- fread("Oct2017Efficiency.csv")
+class(newdata)
 ###################################################################
 ############# Studying the structure of Data ######################
 ###################################################################
