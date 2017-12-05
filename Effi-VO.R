@@ -26,6 +26,15 @@ printf("\nTotal number of jobs: %d\n", nrow(jobs))
 ###################################################################
 ############# Conversion to numeric values ########################
 ###################################################################
+if(jobs$RemoteWallClockTime != "0"){
+  if(jobs$MATCH_HEPSPEC == "0"){
+    jobs$MATCH_HEPSPEC <- "80"
+    jobs$MATCH_TotalCpus <- "8"   
+
+  }
+}
+
+
 jobs[,"RemoteWallClockTime"] <- as.numeric(unlist(jobs[,"RemoteWallClockTime"])) #RemoteWallClockTime
 jobs[, "MATCH_HEPSPEC"] <- as.numeric(unlist(jobs[, "MATCH_HEPSPEC"]))
 jobs[, "MATCH_TotalCpus"] <- as.numeric(unlist(jobs[, "MATCH_TotalCpus"]))
@@ -36,11 +45,8 @@ jobs[, "MATCH_TotalCpus"] <- as.numeric(unlist(jobs[, "MATCH_TotalCpus"]))
 ##################### Data Cleansing ##############################
 ###################################################################
 jobs$WallTime <- jobs$RemoteWallClockTime
-if(jobs$WallTime != 0 && jobs$MATCH_HEPSPEC == "0"){
-  jobs$HEPSPEC_TotalCpus <- "10"
-} else{
-  jobs$HEPSPEC_TotalCpus <- jobs$MATCH_HEPSPEC/ jobs$MATCH_TotalCpus
-}
+jobs$HEPSPEC_TotalCpus <- jobs$MATCH_HEPSPEC/ jobs$MATCH_TotalCpus
+nrow(subset(jobs, jobs$RemoteWallClockTime !=0 && jobs$MATCH_HEPSPEC == 0))
 jobs <- na.omit(jobs)
 printf("\nTotal no of jobs after removing NA:%d \n", nrow(jobs))
 
