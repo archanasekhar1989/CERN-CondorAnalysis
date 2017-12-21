@@ -1,4 +1,4 @@
-# To extract 
+# To extract and save values from hdfs files into 
 
 import json
 import csv
