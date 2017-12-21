@@ -7,7 +7,7 @@ setwd("/home/arcs/Oct14/DataCSV")
 getwd()
 
 data_web <- fread("NovWeb.csv")
-data_hdfs <- fread(input = "Nov2017Efficiency_VO.csv", sep = ",", fill = TRUE)
+data_hdfs <- fread(input = "Nov2017Efficiency_VO_withBigBird14-12.csv", sep = ",", fill = TRUE)
 
 ############### Function to print values #########################
 printf <- function(...) cat(sprintf(...))
@@ -17,7 +17,7 @@ printf <- function(...) cat(sprintf(...))
 ###################################################################
 names(data_web)
 str(data_web)
-summary(data_web)
+##summary(data_web)
 unique(data_web$Resource) # Tocheck the types of resources
 
 
@@ -25,7 +25,7 @@ unique(data_web$Resource) # Tocheck the types of resources
 ############# Conversion to numeric values ########################
 ###################################################################
 data_web$`Number of Jobs` <- as.numeric(unlist(data_web[, data_web$`Number of Jobs`]))
-summary(data_web)
+##summary(data_web)
 
 ###################################################################
 ############# Removing jobs with NA in      #######################
@@ -51,7 +51,8 @@ data_cloud <- subset(data_web, Resource == "cloud")
 printf("\nNo of cloud jobs from website: %s", sum(data_cloud$`Number of Jobs`))
 
 data_condor <- subset(data_web, Resource == "condor")
-web_condor_jobs = sum(data_web$`Number of Jobs`)
+data_condor_grid <- subset(data_condor, data_condor$Infrastructure == "grid")
+web_condor_jobs = sum(data_condor$`Number of Jobs`)
 printf("\nNo of Condor jobs from website: %s", sum(data_condor$`Number of Jobs`))
 unique(data_condor$Infrastructure)
 web_condor_grid <- subset(data_condor, data_condor$Infrastructure == "grid")
@@ -62,6 +63,7 @@ printf("\nNo of Condor:grid jobs from website: %s", sum(web_condor_local$`Number
 
 hdfs_condor_jobs = nrow(data_hdfs)
 printf("\nTotal no of jobs from HDFS: %d", nrow(data_hdfs))
+printf("\nTotal no of Condor-Grid jobs from website: %d", sum(data_condor_grid$`Number of Jobs`))
 diff = web_condor_jobs - hdfs_condor_jobs
 printf("\nNo of missing jobs in HDFS System: %d", diff)
 

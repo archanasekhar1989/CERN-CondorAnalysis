@@ -1,0 +1,134 @@
+#Aim: To compute the normalised efficiency and study the low efficiency jobs
+
+library(data.table)
+library(ggplot2)
+
+
+setwd("/home/arcs/Oct14/DataCSV")
+getwd()
+jobs <- fread(input = "Nov2017Efficiency_final.csv", sep = ",", fill = TRUE)
+
+
+############### Function to print values #########################
+printf <- function(...) cat(sprintf(...))
+
+
+# Conversion to numeric values 
+jobs[,"RemoteWallClockTime"] <- as.numeric(unlist(jobs[,"RemoteWallClockTime"])) #RemoteWallClockTime
+jobs[, "MATCH_HEPSPEC"] <- as.numeric(unlist(jobs[, "MATCH_HEPSPEC"]))
+jobs[, "MATCH_TotalCpus"] <- as.numeric(unlist(jobs[, "MATCH_TotalCpus"]))
+
+# Removing jobs with NA in Particular Col           
+jobs <- jobs[!is.na((jobs$RemoteWallClockTime))]
+jobs <- jobs[!is.na(jobs$MATCH_HEPSPEC)]
+jobs <- jobs[!is.na(jobs$MATCH_TotalCpus)]
+
+# Setting default values for MATCH_HEPSPEC and MATCH_TotalCpus
+
+index <- jobs$MATCH_HEPSPEC == 0
+jobs$MATCH_HEPSPEC[index] <- 80
+jobs$MATCH_TotalCpus <- 8
+
+# Computation of efficiency 
+jobs$CPUTime <- jobs$RemoteSysCpu + jobs$RemoteUserCpu 
+jobs <- jobs[!is.na(jobs$CPUTime)]
+jobs$WallTime <- jobs$RemoteWallClockTime
+jobs <- subset(jobs, jobs$WallTime != 0) #Removing jobs with WallTime = 0
+jobs <- subset(jobs, jobs$MATCH_TotalCpus != 0)
+jobs$HEPSPEC_TotalCpus <- jobs$MATCH_HEPSPEC/ jobs$MATCH_TotalCpus
+jobs$NWallTime <- jobs$WallTime * jobs$RequestCpus * jobs$HEPSPEC_TotalCpus
+jobs$NCPUTime <- jobs$CPUTime * jobs$HEPSPEC_TotalCpus
+jobs <- subset(jobs, NWallTime != 0)
+printf("\nTotal no of jobs after removing jobs with normalized walltime = 0: %d\n", nrow(jobs))
+jobs$NEfficiency <- jobs$NCPUTime/jobs$NWallTime
+Total_NEfficiency <- sum(jobs$NCPUTime)/sum(jobs$NWallTime)
+
+printf("\n\n Normalised Efficiency(For all jobs):")
+print(Total_NEfficiency)
+
+# Visiualisation of Efficiency of jobs 
+graph1 <- ggplot(jobs, aes(x = NEfficiency)) +
+  geom_histogram( color = "Black", fill = "Blue", bins = 50, alpha = 0.5 ) 
+graph1 + labs(title= "Normalized Efficiency", x= "Normalized Efficiency", y = "Number of Jobs")
+
+
+graph2 <- ggplot(jobs, aes(x = NEfficiency)) +
+  geom_histogram(color = "Black", fill = "cornflowerblue", bins = 50 ) +
+  scale_y_continuous(trans="log10", expand=c(0,0))
+graph2 + labs(title= "Normalized Efficiency (Log Scale)", x= "Normalized Efficiency", y = "Number of Jobs")
+
+# Jobs with very high efficiency- Error 
+error_jobs <- subset(jobs, NEfficiency > 1.2) 
+error_fraction <- nrow(error_jobs)/nrow(jobs)
+
+printf("\n\n Fraction of very high efficiency jobs:")
+print(error_fraction)
+
+# Correction by eliminating jobs with high efficiency 
+jobs <- subset(jobs, NEfficiency <= 1.2)
+corrected_eff <- sum(jobs$NCPUTime)/sum(jobs$NWallTime)
+
+printf("\n\n Normalised Efficiency after correction:")
+print(corrected_eff)
+
+plot(density(jobs$NEfficiency))
+
+# Study of low efficiency jobs
+low_effi_jobs <- subset(jobs, jobs$NEfficiency < 0.075)
+
+plot(density(low_effi_jobs$NEfficiency))
+low_effi_jobs$TotalWallTime <- low_effi_jobs$WallTime * low_effi_jobs$RequestCpus
+
+# Classification of low efficient jobs into 2 Classes on the basis of CPU Time
+
+# Set of jobs that never get CPU Time
+low_effi_jobs_ZeroCPU <- subset(low_effi_jobs, CPUTime == 0)
+# Set of jobs with low CPU Time and high Wall time
+low_effi_jobs_grt_CPUTime <- subset(low_effi_jobs, CPUTime > 0) 
+
+# Contribution based on VO Zero efficiency jobs
+VO = unique(jobs$x509UserProxyVOName)
+
+for (vo in VO){
+  printf("\n\n\n************ Zero CPU Time - VO Name: %s ***************\n", vo)
+  sub_Data <- subset(low_effi_jobs_ZeroCPU, x509UserProxyVOName == vo)
+  printf("\nNumber of observation: %d", nrow(sub_Data))
+  printf("\nPercentage of data: %f", (nrow(sub_Data)/nrow(jobs))*100)
+}
+
+# Contribution based on VO low efficiency jobs   
+for (vo in VO){
+  printf("\n\n\n************ VO Name: %s ***************\n", vo)
+  sub_Data <- subset(low_effi_jobs_grt_CPUTime, x509UserProxyVOName == vo)
+  printf("\nNumber of observation: %d", nrow(sub_Data))
+  printf("\nPercentage of data: %f", (nrow(sub_Data)/nrow(jobs))*100)
+  NEfficiency_sub <- sum(sub_Data$NCPUTime)/sum(sub_Data$NWallTime)
+  printf("\nNormalized Efficiency: ")
+  print(NEfficiency_sub)
+}
+
+# Peak in Total Wall Time - low efficient jobs 
+j5 <- subset(low_effi_jobs_grt_CPUTime, TotalWallTime < 250)
+
+ggplot(j5, aes(x=TotalWallTime)) +
+  stat_density(aes(y=..count..), color="black", fill="blue", alpha=0.3) +
+  labs(title = "Density of CPU Time ", x = "CPU Time", y = "Number of Jobs")
+
+for (vo in VO){
+  printf("\n\n\n************ VO Name: %s ***************\n", vo)
+  sub_Data <- subset(j5, x509UserProxyVOName == vo)
+  printf("\nNumber of observation: %d", nrow(sub_Data))
+  printf("\nPercentage of data: %f", (nrow(sub_Data)/nrow(jobs))*100)
+}
+
+# To check the job universe. Exit code depends on Job universe. Exit code is always Zero for grid jobs. 
+# For others When a user job exits by means other than a signal, this is the exit return code of the user job.
+unique(jobs$JobUniverse) # Super set of J5
+
+exit_code <- unique(j5$ExitCode)
+for (ec in exit_code){
+  printf("\n\n\n************ Exit Code Value: %s ***************\n", ec)
+  sub_Data <- subset(j5, ExitCode == ec)
+  printf("\nNumber of observation: %d", nrow(sub_Data))
+  printf("\nPercentage of data: %f", (nrow(sub_Data)/nrow(jobs))*100)
+}

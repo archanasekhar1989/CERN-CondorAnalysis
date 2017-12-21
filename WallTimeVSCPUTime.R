@@ -1,4 +1,5 @@
-setwd("/home/arcs/Oct14/")
+setwd("remote: HTTP Basic: Access denied
+fatal: Authentication failed for 'https://:@gitlab.cern.ch:8443/aarun/Condor_analysis.git/")
 getwd()
 newdata <- read.csv("14Oct2017CPUvsWallTime.csv", header = T, sep=",")
 names(newdata)

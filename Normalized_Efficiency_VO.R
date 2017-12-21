@@ -9,7 +9,8 @@ library(ggplot2)
 
 setwd("/home/arcs/Oct14/DataCSV")
 getwd()
-jobs <<- fread("Oct2017Efficiency_VO.csv")
+#jobs <- fread("Oct2017Efficiency_VO.csv")
+jobs <- fread(input = "Nov2017Efficiency_VO_withBigBird.csv", sep = ",", fill = TRUE)
 
 ############### Function to print values #########################
 printf <- function(...) cat(sprintf(...))
